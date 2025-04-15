@@ -10,6 +10,7 @@ from landlab import RasterModelGrid, imshow_grid
 from landlab.components import (
     DepressionFinderAndRouter,
     FastscapeEroder,
+    DepressionFinderAndRouter,
     FlowAccumulator,
     LinearDiffuser,
     StreamPowerEroder,
@@ -113,36 +114,62 @@ def getRasterObject(filename: str) -> rasterio.io.DatasetReader:
     """
     return rasterio.open(filename)
 
+def define_basin_from_coords(mg: RasterModelGrid, coords: tuple) -> np.ndarray:
+    """Define a basin mask from given coordinates.
+
+    Args:
+        mg (RasterModelGrid): The RasterModelGrid object.
+        coords (tuple): The (x, y) coordinates of the outlet.
+
+    Returns:
+        np.ndarray: A boolean mask array where True indicates the basin area.
+    """
+    # Initialize DepressionFinderAndRouter and map depressions
+    depression_finder = DepressionFinderAndRouter(mg)
+    depression_finder.map_depressions()
+
+    # Run FlowAccumulator to calculate flow directions
+    flow_accumulator = FlowAccumulator(mg)
+    flow_accumulator.run_one_step()
+
+    # Convert coordinates to grid indices and then to a node
+    x, y = coords
+    row = int((y - mg.xy_of_lower_left[1]) / mg.dy)
+    col = int((x - mg.xy_of_lower_left[0]) / mg.dx)
+    outlet_node = mg.grid_coords_to_node_id(row, col)
+
+    # Delineate basin from the outlet node
+    receivers = mg.at_node["flow__receiver_node"]
+    basin_mask = np.zeros(mg.number_of_nodes, dtype=bool)
+
+    # Use a stack to traverse upstream nodes
+    stack = [outlet_node]
+    while stack:
+        node = stack.pop()
+        if not basin_mask[node]:
+            basin_mask[node] = True
+            # Add all nodes that flow into the current node
+            stack.extend(np.where(receivers == node)[0])
+
+    return basin_mask
+
+
 def main():
     # Open the raster file and get the data and metadata
     filename = "./assets/rst/clippedDem_12N.tif"
     rasterObj = getRasterObject(filename)
-    
-       
-    # Create a figure with two subplots side by side
-    fig, axes = plt.subplots(1, 2, figsize=(12, 6))  # 1 row, 2 columns, figure size (width, height) in inches
-    
-    # Plot the raster object in the first subplot
-    show(rasterObj, ax=axes[0])
-    axes[0].set_title("Raster Object")
-    
-    # Read the elevation array and describe it
-    elevArr = rasterObj.read(1)  # <class 'numpy.ndarray'>
-    describe_elevation(elevArr)
-    
-    # Plot the elevation array in the second subplot
-    show(elevArr, ax=axes[1], cmap="terrain")
-    axes[1].set_title("Elevation Array")
-    
-    # Adjust layout for better spacing
-    plt.tight_layout()
-    plt.show()
-    
 
     # Create a RasterModelGrid from the raster object
     mg = CreateGridFromDEM(rasterObj, add_elev=True)
-    # Visualize the grid with elevation data for debugging or analysis
-    imshow_grid(mg, "topographic__elevation", shrink=0.5, at="node")
+
+    # Define the basin mask from the outlet coordinates
+    basin_mask = define_basin_from_coords(mg, (rasterObj.bounds[0], rasterObj.bounds[1]))
+
+    # Show the basin mask
+    plt.imshow(basin_mask.reshape(mg.shape), cmap="gray", origin="lower")
+    plt.title("Watershed Basin")
+    plt.colorbar(label="Basin Mask")
+    plt.show()
 
 
 if __name__ == "__main__":
