@@ -9,8 +9,10 @@ dependencies = [
     "ipykernel>=6.29.5",
     "landlab>=2.9.2",
     "matplotlib>=3.10.1",
+    "mplleaflet>=0.0.5",
     "numpy>=2.2.4",
     "pandas>=2.2.3",
+    "pysheds>=0.4",
     "rasterio>=1.4.3",
     "shapely>=2.1.0",
 ]
