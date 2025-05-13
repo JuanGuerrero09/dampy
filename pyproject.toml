@@ -15,5 +15,6 @@ dependencies = [
     "pandas>=2.2.3",
     "pysheds>=0.4",
     "rasterio>=1.4.3",
+    "seaborn>=0.13.2",
     "shapely>=2.1.0",
 ]
