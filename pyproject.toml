@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "cartopy>=0.24.1",
+    "fiona>=1.10.1",
     "geopandas>=1.0.1",
     "ipykernel>=6.29.5",
     "landlab>=2.9.2",
